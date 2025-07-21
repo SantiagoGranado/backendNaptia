@@ -3,7 +3,6 @@ const axios = require('axios');
 const INITIAL_HOST = 'https://wscentral.e-salus.com';
 const CLIENT_ID = process.env.SALUS_CLIENT_ID;
 const AUTH_HEADER = process.env.SALUS_AUTHORIZATION;
-
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 let apiClient = null;
@@ -29,8 +28,28 @@ async function initializeHost() {
   });
 }
 
-async function getResources() {
+// Comprueba si el cliente está inicializado antes de cada llamada
+function checkInitialized() {
   if (!apiClient) throw new Error('API client no inicializado');
+}
+
+// --- NUEVA FUNCIÓN: Buscar pacientes ---
+async function getPatients(body) {
+  checkInitialized();
+  const { data } = await apiClient.post('/getPatients', body);
+  return data;
+}
+
+// --- NUEVA FUNCIÓN: Crear cita ---
+async function createAppointment(body) {
+  checkInitialized();
+  const { data } = await apiClient.post('/addAppointment', body);
+  return data;
+}
+
+// --- FUNCIONES EXISTENTES ---
+async function getResources() {
+  checkInitialized();
   const { data } = await apiClient.post('/getResources', {
     CENTER_LID: process.env.SALUS_CENTER_LID
   });
@@ -38,23 +57,21 @@ async function getResources() {
 }
 
 async function getActivities(resourceLid) {
-  if (!apiClient) throw new Error('API client no inicializado');
+  checkInitialized();
   const { data } = await apiClient.post('/getActivities', {
     RESOURCE_LID: resourceLid
   });
   return data;
 }
 
-// --- FUNCIÓN getInsurances ---
 async function getInsurances() {
-  if (!apiClient) throw new Error('API client no inicializado');
+  checkInitialized();
   const { data } = await apiClient.post('/getInsurances', {});
   return data;
 }
 
-// --- FUNCIÓN getAvailabilities ---
 async function getAvailabilities(body) {
-  if (!apiClient) throw new Error('API client no inicializado');
+  checkInitialized();
   const { data } = await apiClient.post('/searchAvailabilities', body);
   return data;
 }
@@ -65,4 +82,6 @@ module.exports = {
   getActivities,
   getInsurances,
   getAvailabilities,
+  getPatients,
+  createAppointment
 };

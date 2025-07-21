@@ -10,6 +10,7 @@ const hospitalesRouter = require('./router/hospitales');
 const profesionalesRouter = require('./router/profesionales');
 const insurancesRouter = require('./router/insurances');
 const availabilitiesRouter = require('./router/availability');
+const appointmentsRouter = require('./router/appointments');
 
 async function main() {
   await initializeHost();
@@ -25,7 +26,9 @@ async function main() {
   app.use('/api/especialidades', especialidadesRouter);
   app.use('/api/profesionales', profesionalesRouter);
   app.use('/api/insurances', insurancesRouter);
-  app.use('/api/availabilities', availabilitiesRouter); // Cambiado a plural para consistencia
+  app.use('/api/availabilities', availabilitiesRouter);
+  app.use('/api/appointments', appointmentsRouter);
+
 
   const PORT = process.env.PORT || 8080;
   app.listen(PORT, () => {
