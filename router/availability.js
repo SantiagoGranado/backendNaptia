@@ -1,101 +1,74 @@
-const express = require("express");
+// router/availability.js
+
+const express = require('express');
 const router = express.Router();
-const { getAvailabilities } = require("../salusApi");
+const { getAvailabilities } = require('../salusApi');
 
-// --- Función util para hacer reintentos ---
-async function retryPromise(fn, retries = 3, delayMs = 800) {
-  let error;
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      error = err;
-      console.warn(
-        `Intento ${i + 1} fallido al buscar disponibilidades:`,
-        err.message
-      );
-      if (i < retries - 1) await new Promise((r) => setTimeout(r, delayMs));
-    }
-  }
-  throw error;
-}
+/**
+ * POST /api/availabilities
+ * Body parameters expected:
+ *   - RESOURCE_LID
+ *   - ACTIVITY_LID
+ *   - LOCATION_LID
+ *   - INSURANCE_LID
+ *   - AVA_START_DAY
+ *   - AVA_END_DAY
+ *   - AVA_START_TIME
+ *   - AVA_END_TIME
+ *   - AVA_MIN_TIME
+ *   - AVA_MAX_TIME
+ *   - AVA_RESULTS_NUMBER
+ *
+ * Devuelve los huecos disponibles para el profesional y actividad indicados.
+ */
+router.post('/', async (req, res) => {
+  // Log para depuración: muestra el body recibido
+  console.log('🔍 Disponibilities Request body:', req.body);
 
-// Endpoint GET para obtener información básica
-router.get("/", async (req, res) => {
   try {
-    res.json({
-      message: "Endpoint de disponibilidades activo",
-      methods: ["GET", "POST"],
-      usage: {
-        GET: "Información básica del endpoint",
-        POST: "Buscar disponibilidades con parámetros en el body",
-      },
-    });
-  } catch (err) {
-    console.error("Error en GET availabilities:", err.message);
-    res.status(500).json({ error: "Error interno del servidor" });
-  }
-});
+    // Desestructuramos solo los campos necesarios del body
+    const {
+      RESOURCE_LID,
+      ACTIVITY_LID,
+      LOCATION_LID,
+      INSURANCE_LID,
+      AVA_START_DAY,
+      AVA_END_DAY,
+      AVA_START_TIME,
+      AVA_END_TIME,
+      AVA_MIN_TIME,
+      AVA_MAX_TIME,
+      AVA_RESULTS_NUMBER,
+    } = req.body;
 
-// Endpoint POST para buscar disponibilidades
-router.post("/", async (req, res) => {
-  try {
-    const params = req.body;
-    if (!params || Object.keys(params).length === 0) {
+    // Validación de campos obligatorios
+    if (!RESOURCE_LID || !ACTIVITY_LID || !LOCATION_LID) {
       return res
         .status(400)
-        .json({
-          error:
-            "Se requieren parámetros en el body para buscar disponibilidades",
-        });
+        .json({ error: 'Faltan parámetros obligatorios en la petición' });
     }
 
-    const today = new Date();
-    const thirtyDaysFromNow = new Date(today);
-    thirtyDaysFromNow.setDate(today.getDate() + 30);
+    // Llamada directa al endpoint NetAPI a través del cliente autenticado
+    const availabilities = await getAvailabilities({
+      RESOURCE_LID,
+      ACTIVITY_LID,
+      LOCATION_LID,
+      INSURANCE_LID,
+      AVA_START_DAY,
+      AVA_END_DAY,
+      AVA_START_TIME,
+      AVA_END_TIME,
+      AVA_MIN_TIME,
+      AVA_MAX_TIME,
+      AVA_RESULTS_NUMBER,
+    });
 
-    //Marcar fechas que se muestran
-    const pad = (n) => n.toString().padStart(2, "0");
-    const fechaInicio = `${pad(today.getDate())}/${pad(
-      today.getMonth() + 1
-    )}/${today.getFullYear()}`;
-    const fechaFin = `${pad(thirtyDaysFromNow.getDate())}/${pad(
-      thirtyDaysFromNow.getMonth() + 1
-    )}/${thirtyDaysFromNow.getFullYear()}`;
-
-    const paramsWithDates = {
-      ...params,
-      AVA_START_DAY: params.AVA_START_DAY || fechaInicio,
-      AVA_END_DAY: params.AVA_END_DAY || fechaFin,
-    };
-
-    console.log(
-      "Intentando obtener disponibilidades desde:",
-      paramsWithDates.AVA_START_DAY,
-      "hasta:",
-      paramsWithDates.AVA_END_DAY
-    );
-
-    // --- REINTENTO ---
-    const results = await retryPromise(
-      () => getAvailabilities(paramsWithDates),
-      3,
-      900
-    );
-
-    res.json(results);
+    return res.json(availabilities);
   } catch (err) {
-    console.error(
-      "Error obteniendo disponibilidades tras varios intentos:",
-      err.message,
-      err.response?.data || ""
-    );
-    res
+    console.error('Error al obtener disponibilidades:', err.message || err);
+    return res
       .status(500)
-      .json({
-        error:
-          "No se pudo obtener el calendario de disponibilidad después de varios intentos",
-      });
+      .json({ error: 'Error al obtener disponibilidades' });
   }
 });
 
